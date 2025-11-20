@@ -1,0 +1,15 @@
+/**
+ * Vault Credential Enums
+ */
+
+/**
+ * Vault credential error codes
+ */
+export enum VaultCredentialErrorCode {
+  NOT_FOUND = 'VAULT_CREDENTIAL_NOT_FOUND',
+  ALREADY_EXISTS = 'VAULT_CREDENTIAL_ALREADY_EXISTS',
+  VAULT_OPERATION_FAILED = 'VAULT_OPERATION_FAILED',
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  INVALID_INPUT = 'INVALID_INPUT',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+}
