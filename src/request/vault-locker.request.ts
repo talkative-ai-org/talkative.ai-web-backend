@@ -1,5 +1,5 @@
 /**
- * Vault Credential Request DTOs
+ * Vault Locker Request DTOs
  */
 
 import {
@@ -11,9 +11,9 @@ import {
 } from 'class-validator'
 
 /**
- * Create vault credential request
+ * Create vault locker request
  */
-export class CreateVaultCredentialRequest {
+export class CreateVaultLockerRequest {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -24,21 +24,12 @@ export class CreateVaultCredentialRequest {
   @IsOptional()
   @MaxLength(500)
   description?: string
-
-  @IsString()
-  @IsNotEmpty()
-  lockerId!: string
-
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(10)
-  apiKey!: string
 }
 
 /**
- * Update vault credential request
+ * Update vault locker request
  */
-export class UpdateVaultCredentialRequest {
+export class UpdateVaultLockerRequest {
   @IsString()
   @IsOptional()
   @MinLength(3)
@@ -49,17 +40,12 @@ export class UpdateVaultCredentialRequest {
   @IsOptional()
   @MaxLength(500)
   description?: string
-
-  @IsString()
-  @IsOptional()
-  @MinLength(10)
-  apiKey?: string
 }
 
 /**
- * Query parameters for listing vault credentials
+ * Query parameters for listing vault lockers
  */
-export class ListVaultCredentialsQuery {
+export class ListVaultLockersQuery {
   @IsOptional()
   @IsString()
   limit?: string

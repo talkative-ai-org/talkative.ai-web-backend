@@ -22,6 +22,15 @@ export interface ListVaultCredentialsOptions {
   search?: string
 }
 
+/**
+ * Query options for listing credentials by locker
+ */
+export interface GetCredentialsByLockerOptions {
+  limit?: number
+  offset?: number
+  search?: string
+}
+
 export class VaultCredentialService {
   private readonly prisma = getPrismaClient()
   private readonly vaultClient = getVaultClient()
@@ -30,11 +39,27 @@ export class VaultCredentialService {
    * Creates a new vault credential
    * Stores metadata in PostgreSQL and API key in HashiCorp Vault
    * Initial version is set to 1
+   * Credential must be assigned to a vault locker
    */
   async createVaultCredential(
     dto: CreateVaultCredentialRequest
   ): Promise<ServiceResponse<VaultCredentialResponse>> {
     try {
+      // Verify that the vault locker exists
+      const locker = await this.prisma.vaultLocker.findUnique({
+        where: { id: dto.lockerId },
+      })
+
+      if (!locker) {
+        return {
+          success: false,
+          error: {
+            code: VaultCredentialErrorCode.NOT_FOUND,
+            message: `Vault locker with ID '${dto.lockerId}' not found`,
+          },
+        }
+      }
+
       // Check if credential with same name already exists
       const existing = await this.prisma.vault.findUnique({
         where: { name: dto.name },
@@ -50,11 +75,13 @@ export class VaultCredentialService {
         }
       }
 
-      // Store API key in Vault first
+      // Store API key in Vault first (single centralized storage)
       try {
         await this.vaultClient.writeSecret(dto.name, {
           apiKey: dto.apiKey,
           version: 1,
+          lockerId: dto.lockerId,
+          lockerName: locker.name,
         })
       } catch (error) {
         return {
@@ -67,12 +94,13 @@ export class VaultCredentialService {
         }
       }
 
-      // Store metadata in PostgreSQL
+      // Store metadata in PostgreSQL with locker relationship
       const credential = await this.prisma.vault.create({
         data: {
           name: dto.name,
           description: dto.description || null,
           version: 1,
+          lockerId: dto.lockerId,
         },
       })
 
@@ -237,6 +265,7 @@ export class VaultCredentialService {
 
   /**
    * Lists all vault credentials with optional filtering
+   * For global credential listing across all lockers
    */
   async listVaultCredentials(
     options: ListVaultCredentialsOptions = {}
@@ -247,11 +276,11 @@ export class VaultCredentialService {
       const credentials = await this.prisma.vault.findMany({
         where: search
           ? {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-              ],
-            }
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
           : undefined,
         take: limit,
         skip: offset,
@@ -270,6 +299,72 @@ export class VaultCredentialService {
         error: {
           code: VaultCredentialErrorCode.DATABASE_ERROR,
           message: 'Failed to list vault credentials',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      }
+    }
+  }
+
+  /**
+   * Retrieves all vault credentials for a specific vault locker
+   * Dedicated method for locker-specific credential retrieval
+   * 
+   * @param lockerId - The ID of the vault locker
+   * @param options - Optional filtering and pagination options
+   * @returns Service response containing credentials for the specified locker
+   */
+  async getVaultCredentialsByLockerId(
+    lockerId: string,
+    options: GetCredentialsByLockerOptions = {}
+  ): Promise<ServiceResponse<VaultCredentialResponse[]>> {
+    try {
+      // Verify that the vault locker exists
+      const locker = await this.prisma.vaultLocker.findUnique({
+        where: { id: lockerId },
+      })
+
+      if (!locker) {
+        return {
+          success: false,
+          error: {
+            code: VaultCredentialErrorCode.NOT_FOUND,
+            message: `Vault locker with ID '${lockerId}' not found`,
+          },
+        }
+      }
+
+      const { limit = 50, offset = 0, search } = options
+
+      // Build where clause for locker-specific credentials
+      const where: any = { lockerId }
+
+      // Add search filter if provided
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ]
+      }
+
+      const credentials = await this.prisma.vault.findMany({
+        where,
+        take: limit,
+        skip: offset,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+
+      return {
+        success: true,
+        data: credentials.map((c) => this.mapToResponse(c)),
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: VaultCredentialErrorCode.DATABASE_ERROR,
+          message: 'Failed to retrieve credentials for vault locker',
           details: error instanceof Error ? error.message : String(error),
         },
       }

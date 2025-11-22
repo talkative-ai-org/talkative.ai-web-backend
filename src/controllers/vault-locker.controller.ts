@@ -1,31 +1,30 @@
 /**
- * Vault Credential Controller
+ * Vault Locker Controller
  *
- * Handles HTTP requests for vault credential management.
+ * Handles HTTP requests for vault locker management.
  * Calls service layer and formats responses.
  */
 
 import type { Request, Response } from 'express'
-import { VaultCredentialService } from '../services/vault-credential.service.js'
+import { VaultLockerService } from '../services/vault-locker.service.js'
 import type {
-  CreateVaultCredentialRequest,
-  UpdateVaultCredentialRequest,
-} from '../request/vault-credential.request.js'
+  CreateVaultLockerRequest,
+  UpdateVaultLockerRequest,
+} from '../request/vault-locker.request.js'
 import { ApiResponse } from '../response/api.response.js'
-import { ApiKeyResponse } from '../response/vault-credential.response.js'
 import { VaultCredentialErrorCode } from '../enums/vault-credential.enum.js'
 
-export class VaultCredentialController {
-  private readonly vaultCredentialService = new VaultCredentialService()
+export class VaultLockerController {
+  private readonly vaultLockerService = new VaultLockerService()
 
   /**
-   * Create a new vault credential
-   * POST /api/v1/vault-credentials
+   * Create a new vault locker
+   * POST /api/v1/vault-lockers
    */
-  async createVaultCredential(req: Request, res: Response): Promise<void> {
+  async createVaultLocker(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.vaultCredentialService.createVaultCredential(
-        req.body as CreateVaultCredentialRequest
+      const result = await this.vaultLockerService.createVaultLocker(
+        req.body as CreateVaultLockerRequest
       )
 
       if (!result.success) {
@@ -47,43 +46,17 @@ export class VaultCredentialController {
   }
 
   /**
-   * Get a vault credential by ID
-   * GET /api/v1/vault-credentials/:id
+   * Get a vault locker by ID
+   * GET /api/v1/vault-lockers/:id
    */
-  async getVaultCredentialById(req: Request, res: Response): Promise<void> {
+  async getVaultLockerById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
+      const { includeVaults } = req.query
 
-      const result = await this.vaultCredentialService.getVaultCredentialById(id)
-
-      if (!result.success) {
-        const statusCode = this.getStatusCodeFromError(result.error!.code)
-        res.status(statusCode).json(
-          ApiResponse.error(
-            result.error!.code,
-            result.error!.message,
-            result.error!.details
-          )
-        )
-        return
-      }
-
-      res.status(200).json(ApiResponse.success(result.data))
-    } catch (error) {
-      this.handleUnexpectedError(res, error)
-    }
-  }
-
-  /**
-   * Get a vault credential by name
-   * GET /api/v1/vault-credentials/by-name/:name
-   */
-  async getVaultCredentialByName(req: Request, res: Response): Promise<void> {
-    try {
-      const { name } = req.params
-
-      const result = await this.vaultCredentialService.getVaultCredentialByName(
-        name
+      const result = await this.vaultLockerService.getVaultLockerById(
+        id,
+        includeVaults === 'true'
       )
 
       if (!result.success) {
@@ -105,14 +78,18 @@ export class VaultCredentialController {
   }
 
   /**
-   * Get API key by credential name
-   * GET /api/v1/vault-credentials/:name/api-key
+   * Get a vault locker by name
+   * GET /api/v1/vault-lockers/by-name/:name
    */
-  async getApiKeyByName(req: Request, res: Response): Promise<void> {
+  async getVaultLockerByName(req: Request, res: Response): Promise<void> {
     try {
       const { name } = req.params
+      const { includeVaults } = req.query
 
-      const result = await this.vaultCredentialService.getApiKeyByName(name)
+      const result = await this.vaultLockerService.getVaultLockerByName(
+        name,
+        includeVaults === 'true'
+      )
 
       if (!result.success) {
         const statusCode = this.getStatusCodeFromError(result.error!.code)
@@ -126,31 +103,28 @@ export class VaultCredentialController {
         return
       }
 
-      res.status(200).json(
-        ApiResponse.success(
-          new ApiKeyResponse(result.data!.apiKey, result.data!.version)
-        )
-      )
+      res.status(200).json(ApiResponse.success(result.data))
     } catch (error) {
       this.handleUnexpectedError(res, error)
     }
   }
 
   /**
-   * List all vault credentials with optional filtering
-   * GET /api/v1/vault-credentials
+   * List all vault lockers with optional filtering
+   * GET /api/v1/vault-lockers
    */
-  async listVaultCredentials(req: Request, res: Response): Promise<void> {
+  async listVaultLockers(req: Request, res: Response): Promise<void> {
     try {
-      const { search, limit, offset } = req.query as Record<
+      const { search, limit, offset, includeCount } = req.query as Record<
         string,
         string | undefined
       >
 
-      const result = await this.vaultCredentialService.listVaultCredentials({
+      const result = await this.vaultLockerService.listVaultLockers({
         search,
         limit: limit ? parseInt(limit, 10) : undefined,
         offset: offset ? parseInt(offset, 10) : undefined,
+        includeCount: includeCount === 'true',
       })
 
       if (!result.success) {
@@ -172,59 +146,18 @@ export class VaultCredentialController {
   }
 
   /**
-   * Get vault credentials by locker ID
-   * GET /api/v1/vault-lockers/:lockerId/credentials
+   * Get all vaults within a specific locker
+   * GET /api/v1/vault-lockers/:id/vaults
    */
-  async getVaultCredentialsByLockerId(
-    req: Request,
-    res: Response
-  ): Promise<void> {
-    try {
-      const { lockerId } = req.params
-      const { search, limit, offset } = req.query as Record<
-        string,
-        string | undefined
-      >
-
-      const result =
-        await this.vaultCredentialService.getVaultCredentialsByLockerId(
-          lockerId,
-          {
-            search,
-            limit: limit ? parseInt(limit, 10) : undefined,
-            offset: offset ? parseInt(offset, 10) : undefined,
-          }
-        )
-
-      if (!result.success) {
-        const statusCode = this.getStatusCodeFromError(result.error!.code)
-        res.status(statusCode).json(
-          ApiResponse.error(
-            result.error!.code,
-            result.error!.message,
-            result.error!.details
-          )
-        )
-        return
-      }
-
-      res.status(200).json(ApiResponse.success(result.data))
-    } catch (error) {
-      this.handleUnexpectedError(res, error)
-    }
-  }
-
-  /**
-   * Update a vault credential
-   * PATCH /api/v1/vault-credentials/:id
-   */
-  async updateVaultCredential(req: Request, res: Response): Promise<void> {
+  async getVaultsInLocker(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
+      const { limit, offset } = req.query as Record<string, string | undefined>
 
-      const result = await this.vaultCredentialService.updateVaultCredential(
+      const result = await this.vaultLockerService.getVaultsInLocker(
         id,
-        req.body as UpdateVaultCredentialRequest
+        limit ? parseInt(limit, 10) : undefined,
+        offset ? parseInt(offset, 10) : undefined
       )
 
       if (!result.success) {
@@ -246,14 +179,49 @@ export class VaultCredentialController {
   }
 
   /**
-   * Delete a vault credential
-   * DELETE /api/v1/vault-credentials/:id
+   * Update a vault locker
+   * PATCH /api/v1/vault-lockers/:id
    */
-  async deleteVaultCredential(req: Request, res: Response): Promise<void> {
+  async updateVaultLocker(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
 
-      const result = await this.vaultCredentialService.deleteVaultCredential(id)
+      const result = await this.vaultLockerService.updateVaultLocker(
+        id,
+        req.body as UpdateVaultLockerRequest
+      )
+
+      if (!result.success) {
+        const statusCode = this.getStatusCodeFromError(result.error!.code)
+        res.status(statusCode).json(
+          ApiResponse.error(
+            result.error!.code,
+            result.error!.message,
+            result.error!.details
+          )
+        )
+        return
+      }
+
+      res.status(200).json(ApiResponse.success(result.data))
+    } catch (error) {
+      this.handleUnexpectedError(res, error)
+    }
+  }
+
+  /**
+   * Delete a vault locker
+   * DELETE /api/v1/vault-lockers/:id
+   */
+  async deleteVaultLocker(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params
+      const { force } = req.query
+
+      const result = await this.vaultLockerService.deleteVaultLocker(
+        id,
+        force === 'true'
+      )
 
       if (!result.success) {
         const statusCode = this.getStatusCodeFromError(result.error!.code)
@@ -297,7 +265,6 @@ export class VaultCredentialController {
    * Handles unexpected errors
    */
   private handleUnexpectedError(res: Response, error: unknown): void {
-    console.error('Unexpected error:', error)
     res.status(500).json(
       ApiResponse.error(
         'INTERNAL_SERVER_ERROR',

@@ -9,7 +9,6 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "declaration": true,
-
     "alwaysStrict": true,
     "forceConsistentCasingInFileNames": true,
     "removeComments": true,
@@ -27,7 +26,6 @@
     "composite": true,
     "skipLibCheck": true,
     "noEmitHelpers": false,
-
     "outDir": "dist",
     "rootDir": "src",
     "baseUrl": "."
@@ -36,5 +34,11 @@
     "dist",
     "node_modules"
   ],
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
 }

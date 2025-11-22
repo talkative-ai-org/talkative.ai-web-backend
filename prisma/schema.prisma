@@ -5,8 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,14 +13,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Vault {
-  id          String   @id @default(uuid())
-  name        String   @unique
+model VaultLocker {
+  id          String  @id @default(cuid())
+  name        String
   description String?
-  version     Int      @default(1)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@map("vault")
+  // Relationship: A locker can contain many vault keys
+  vaults Vault[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+  @@map("vault_locker")
+}
+
+model Vault {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?
+  version     Int         @default(1)
+  lockerId    String
+  locker      VaultLocker @relation(fields: [lockerId], references: [id])
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
   @@index([name])
+  @@map("vault")
 }

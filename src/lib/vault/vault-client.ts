@@ -96,6 +96,7 @@ export class VaultClient {
 
       if (!response.ok) {
         const errorText = await response.text()
+        console.error(`[Vault] HTTP ${response.status} error:`, errorText)
         throw new VaultError(
           `Vault request failed: ${errorText}`,
           response.status
@@ -113,6 +114,7 @@ export class VaultClient {
         throw error
       }
 
+      console.error(`[Vault] Request error for ${method} ${url}:`, error)
       throw new VaultError(
         'Failed to communicate with Vault',
         undefined,
@@ -127,6 +129,10 @@ export class VaultClient {
   async writeSecret(name: string, data: VaultSecretData): Promise<void> {
     const path = this.getSecretPath(name)
 
+    console.log(`[Vault] Writing secret to path: ${path}`)
+    console.log(`[Vault] Secret name: ${name}`)
+    console.log(`[Vault] Data keys: ${Object.keys(data).join(', ')}`)
+
     try {
       await this.makeRequest(path, 'POST', {
         data,
@@ -134,7 +140,14 @@ export class VaultClient {
           cas: 0, // Create if not exists, update otherwise
         },
       })
+      console.log(`[Vault] ✓ Successfully wrote secret '${name}'`)
     } catch (error) {
+      console.error(`[Vault] ✗ Failed to write secret '${name}'`)
+      console.error(`[Vault] Error details:`, error)
+      console.error(`[Vault] Vault URL: ${this.baseUrl}`)
+      console.error(`[Vault] Mount path: ${this.mountPath}`)
+      console.error(`[Vault] Full path: ${path}`)
+
       throw new VaultError(
         `Failed to write secret '${name}' to Vault`,
         error instanceof VaultError ? error.statusCode : undefined,
