@@ -7,6 +7,7 @@
 import { Router } from 'express'
 import vaultCredentialRouter from './vault-credential.routes.js'
 import vaultLockerRouter from './vault-locker.routes.js'
+import modelRouter from './model.routes.js'
 
 // Create API router with versioning
 const apiRouter = Router()
@@ -19,6 +20,7 @@ const v1Router = Router()
 // Register module routes
 v1Router.use('/vault-lockers', vaultLockerRouter)
 v1Router.use('/vault-credentials', vaultCredentialRouter)
+v1Router.use('/models', modelRouter)
 
 // Mount versioned routes
 apiRouter.use('/v1', v1Router)

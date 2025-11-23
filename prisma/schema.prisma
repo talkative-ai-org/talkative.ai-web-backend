@@ -35,9 +35,34 @@ model Vault {
   version     Int         @default(1)
   lockerId    String
   locker      VaultLocker @relation(fields: [lockerId], references: [id])
+  
+  // Relationship: A vault key can be used by many models
+  models      Model[]
+  
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
   @@index([name])
   @@map("vault")
+}
+
+model Model {
+  id            String   @id @default(uuid())
+  provider      String   // LLMProvider | STTProvider | TTSProvider
+  modelName     String   @map("model_name")
+  modelType     String   @map("model_type") // "llm" | "stt" | "tts"
+  vaultKeyId    String?  @map("vault_key_id")
+  configuration Json     // Custom config: { api_url, custom_params, etc. }
+  version       Int      @default(1)
+  
+  // Relationship: A model can optionally reference a vault key
+  vaultKey      Vault?   @relation(fields: [vaultKeyId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, modelName, modelType], name: "unique_model_config")
+  @@index([modelType])
+  @@index([provider])
+  @@map("model")
 }
